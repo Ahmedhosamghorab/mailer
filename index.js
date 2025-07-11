@@ -51,7 +51,7 @@ app.post('/send-email', async (req, res) => {
   `;
 
   const mailOptions = {
-    from: process.env.FROM_EMAIL,
+    from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
     to: user_email,
     subject,
     html: htmlContent,
