@@ -1,9 +1,12 @@
 // index.js
 const express = require('express');
 const nodemailer = require('nodemailer');
-const app = express();
-require('dotenv').config(); // لو هتستخدم .env
+const cors = require('cors');
+require('dotenv').config();
 
+const app = express();
+
+app.use(cors()); // السماح بالوصول من أي origin (ممكن تحدد origin معين)
 app.use(express.json());
 
 app.post('/send-email', async (req, res) => {
@@ -23,8 +26,8 @@ app.post('/send-email', async (req, res) => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL,
-      pass: process.env.SMTP_PASS,
+      user: process.env.EMAIL,       // Gmail account
+      pass: process.env.SMTP_PASS,   // Gmail app password
     },
   });
 
@@ -59,10 +62,14 @@ app.post('/send-email', async (req, res) => {
     res.status(200).json({ message: 'Email sent successfully!' });
   } catch (err) {
     console.error('Email sending error:', err);
-    res.status(500).json({ message: 'Failed to send email', error: err.toString() });
+    res.status(500).json({
+      message: 'Failed to send email',
+      error: err.toString(),
+    });
   }
 });
 
-// تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
