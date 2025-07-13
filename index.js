@@ -1,30 +1,13 @@
 // index.js
 const express = require('express');
+const nodemailer = require('nodemailer');
 const cors = require('cors');
-const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
 
-// إعداد CORS يدويًا للسماح بطلبات من Netlify فقط
-const allowedOrigins = ['https://sureconsultation.netlify.app'];
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  next();
-});
-
+app.use(cors()); // السماح بالوصول من أي origin (ممكن تحدد origin معين)
 app.use(express.json());
-
-// حل لمشكلة preflight OPTIONS request
-app.options('*', (req, res) => {
-  res.sendStatus(200);
-});
 
 app.post('/send-email', async (req, res) => {
   const {
@@ -40,6 +23,14 @@ app.post('/send-email', async (req, res) => {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
 
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL,       // Gmail account
+      pass: process.env.SMTP_PASS,   // Gmail app password
+    },
+  });
+
   const subject = is_follow_up
     ? `متابعة بخصوص استشارتك (${consultation_type})`
     : `رد على استشارتك (${consultation_type})`;
@@ -53,42 +44,33 @@ app.post('/send-email', async (req, res) => {
         ${reply_message}
       </blockquote>
       <p>رقم الاستشارة: <strong>${consultation_id}</strong></p>
-      <p>إذا كانت لديك أي استفسارات إضافية، لا تتردد في التواصل معنا.</p>
+      <p>إذا كانت لديك أي استفسارات إضافية، لا تتردد في إرسال استشارة جديدة عبر المنصة.</p>
+
+      <div style="margin-top: 30px; padding: 15px; background-color: #fff3cd; border-left: 6px solid #ffecb5;">
+        <strong>تنبيه:</strong> هذا البريد مُرسل من عنوان لا يمكن الرد عليه. أي رسائل يتم إرسالها إلى هذا العنوان لن يتم استلامها أو الرد عليها. لطلب استشارة جديدة، يرجى استخدام المنصة فقط.
+      </div>
+
       <hr />
       <p style="font-size: 0.9em; color: #888;">تم إرسال هذا البريد من النظام تلقائيًا.</p>
     </div>
   `;
 
-  try {
-    const response = await axios.post(
-      'https://api.mailersend.com/v1/email',
-      {
-        from: {
-          email: process.env.FROM_EMAIL,
-          name: 'خدمة الدعم - منصة الاستشارات'
-        },
-        to: [{ email: user_email, name: user_name }],
-        subject: subject,
-        html: htmlContent,
-        reply_to: [{
-          email: 'no-reply@shor.solutions',
-          name: 'لا ترد على هذا البريد'
-        }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.MAILERSEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+  const mailOptions = {
+    from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
+    to: user_email,
+    replyTo: 'no-reply@gmail.com',
+    subject,
+    html: htmlContent,
+  };
 
-    res.status(200).json({ message: 'Email sent via MailerSend!', id: response.data.message_id });
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: 'Email sent successfully!' });
   } catch (err) {
-    console.error('MailerSend error:', err.response?.data || err.message);
+    console.error('Email sending error:', err);
     res.status(500).json({
-      message: 'Failed to send email via MailerSend',
-      error: err.response?.data || err.message
+      message: 'Failed to send email',
+      error: err.toString(),
     });
   }
 });
