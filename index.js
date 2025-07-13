@@ -5,8 +5,26 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+
+// إعداد CORS يدويًا للسماح بطلبات من Netlify فقط
+const allowedOrigins = ['https://sureconsultation.netlify.app'];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+});
+
 app.use(express.json());
+
+// حل لمشكلة preflight OPTIONS request
+app.options('*', (req, res) => {
+  res.sendStatus(200);
+});
 
 app.post('/send-email', async (req, res) => {
   const {
@@ -46,7 +64,7 @@ app.post('/send-email', async (req, res) => {
       'https://api.mailersend.com/v1/email',
       {
         from: {
-          email: process.env.FROM_EMAIL, // no-reply@shor.solutions
+          email: process.env.FROM_EMAIL,
           name: 'خدمة الدعم - منصة الاستشارات'
         },
         to: [{ email: user_email, name: user_name }],
