@@ -1,12 +1,11 @@
 // index.js
 const express = require('express');
-const nodemailer = require('nodemailer');
 const cors = require('cors');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-
-app.use(cors()); // السماح بالوصول من أي origin (ممكن تحدد origin معين)
+app.use(cors());
 app.use(express.json());
 
 app.post('/send-email', async (req, res) => {
@@ -22,14 +21,6 @@ app.post('/send-email', async (req, res) => {
   if (!user_email || !user_name || !reply_message) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL,       // Gmail account
-      pass: process.env.SMTP_PASS,   // Gmail app password
-    },
-  });
 
   const subject = is_follow_up
     ? `متابعة بخصوص استشارتك (${consultation_type})`
@@ -50,22 +41,36 @@ app.post('/send-email', async (req, res) => {
     </div>
   `;
 
-  const mailOptions = {
-    from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
-    to: user_email,
-    replyTo: 'no-reply@gmail.com',
-    subject,
-    html: htmlContent,
-  };
-
   try {
-    await transporter.sendMail(mailOptions);
-    res.status(200).json({ message: 'Email sent successfully!' });
+    const response = await axios.post(
+      'https://api.mailersend.com/v1/email',
+      {
+        from: {
+          email: process.env.FROM_EMAIL, // no-reply@shor.solutions
+          name: 'خدمة الدعم - منصة الاستشارات'
+        },
+        to: [{ email: user_email, name: user_name }],
+        subject: subject,
+        html: htmlContent,
+        reply_to: [{
+          email: 'no-reply@shor.solutions',
+          name: 'لا ترد على هذا البريد'
+        }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.MAILERSEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    res.status(200).json({ message: 'Email sent via MailerSend!', id: response.data.message_id });
   } catch (err) {
-    console.error('Email sending error:', err);
+    console.error('MailerSend error:', err.response?.data || err.message);
     res.status(500).json({
-      message: 'Failed to send email',
-      error: err.toString(),
+      message: 'Failed to send email via MailerSend',
+      error: err.response?.data || err.message
     });
   }
 });
