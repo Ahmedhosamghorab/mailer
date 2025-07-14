@@ -56,7 +56,7 @@ app.post('/send-email', async (req, res) => {
   `;
 
   const mailOptions = {
-    from: `"خدمة الدعم - منصة الاستشارات" <noreply@sure.com>`,
+    from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
     to: user_email,
     replyTo: 'no-reply@gmail.com',
     subject,
