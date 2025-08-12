@@ -36,22 +36,33 @@ app.post('/send-email', async (req, res) => {
     : `رد على استشارتك (${consultation_type})`;
 
   const htmlContent = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-      <h2>مرحبًا ${user_name}،</h2>
-      <p>شكرًا لتواصلك معنا بخصوص <strong>${consultation_type}</strong>.</p>
-      <p>${is_follow_up ? "هذا رد متابعة على استشارتك:" : "هذا هو الرد الخاص باستشارتك:"}</p>
-      <blockquote style="border-left: 4px solid #ccc; padding-left: 10px; color: #333;">
-        ${reply_message}
-      </blockquote>
-      <p>رقم الاستشارة: <strong>${consultation_id}</strong></p>
-      <p>إذا كانت لديك أي استفسارات إضافية، لا تتردد في إرسال استشارة جديدة عبر المنصة.</p>
+    <div style="font-family: Arial, sans-serif; line-height: 1.8; background-color: #f7f9fc; padding: 20px; color: #333;">
+      <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        
+        <div style="background-color: #007BFF; color: white; padding: 15px 20px;">
+          <h2 style="margin: 0; font-size: 1.4em;">📩 منصة الاستشارات</h2>
+        </div>
 
-      <div style="margin-top: 30px; padding: 15px; background-color: #fff3cd; border-left: 6px solid #ffecb5;">
-        <strong>تنبيه:</strong> هذا البريد مُرسل من عنوان لا يمكن الرد عليه. أي رسائل يتم إرسالها إلى هذا العنوان لن يتم استلامها أو الرد عليها. لطلب استشارة جديدة، يرجى استخدام المنصة فقط.
+        <div style="padding: 20px;">
+          <h2 style="color: #007BFF; margin-top: 0;">مرحبًا ${user_name}،</h2>
+          <p>شكرًا لتواصلك معنا بخصوص <strong>${consultation_type}</strong>.</p>
+          <p>${is_follow_up ? "هذا رد متابعة على استشارتك:" : "هذا هو الرد الخاص باستشارتك:"}</p>
+
+          <blockquote style="border-left: 4px solid #007BFF; padding-left: 15px; margin: 15px 0; background: #f0f4ff; border-radius: 4px;">
+            ${reply_message}
+          </blockquote>
+
+          <p style="margin-top: 15px;">رقم الاستشارة: <strong>${consultation_id}</strong></p>
+
+          <div style="margin-top: 25px; padding: 15px; background-color: #fff3cd; border-left: 6px solid #ffecb5; border-radius: 4px;">
+            <strong>⚠️ تنبيه:</strong> هذا البريد مُرسل من عنوان لا يمكن الرد عليه. أي رسائل يتم إرسالها إلى هذا العنوان لن يتم استلامها أو الرد عليها. لطلب استشارة جديدة، يرجى استخدام المنصة فقط.
+          </div>
+        </div>
+
+        <div style="background: #f1f1f1; padding: 10px; text-align: center; font-size: 0.85em; color: #777;">
+          تم إرسال هذا البريد من النظام تلقائيًا.
+        </div>
       </div>
-
-      <hr />
-      <p style="font-size: 0.9em; color: #888;">تم إرسال هذا البريد من النظام تلقائيًا.</p>
     </div>
   `;
 
