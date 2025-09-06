@@ -1,31 +1,23 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
-const multer = require('multer'); // 👈 لإدارة رفع الملفات
+const multer = require('multer'); // لإدارة رفع الملفات
 require('dotenv').config();
 
 const app = express();
 
-const cors = require('cors');
-
-// السماح لجميع origins
+// السماح لجميع origins (أو حدد دومينك)
 app.use(cors({
-  origin: '*',  // 👈 يسمح لأي دومين
+  origin: '*',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-// إعداد multer لحفظ الملفات في الذاكرة (مش على الهارد)
+
+// إعداد multer لحفظ الملفات في الذاكرة
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/send-email', upload.array('attachments'), async (req, res) => {
-  const {
-    consultation_id,
-    user_email,
-    user_name,
-    reply_message,
-    consultation_type,
-    is_follow_up
-  } = req.body;
+  const { consultation_id, user_email, user_name, reply_message, consultation_type, is_follow_up } = req.body;
 
   if (!user_email || !user_name || (!reply_message && req.files.length === 0)) {
     return res.status(400).json({ message: 'Missing required fields.' });
@@ -52,7 +44,6 @@ app.post('/send-email', upload.array('attachments'), async (req, res) => {
     </div>
   `;
 
-  // 👇 تجهيز المرفقات من multer (files in memory)
   const attachments = req.files.map(file => ({
     filename: file.originalname,
     content: file.buffer
@@ -64,7 +55,7 @@ app.post('/send-email', upload.array('attachments'), async (req, res) => {
     replyTo: 'no-reply@gmail.com',
     subject,
     html: htmlContent,
-    attachments, // 👈 إدخال المرفقات هنا
+    attachments,
   };
 
   try {
