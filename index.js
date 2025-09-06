@@ -1,43 +1,42 @@
-const express = require('express');
-const nodemailer = require('nodemailer');
-const multer = require('multer');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import nodemailer from 'nodemailer';
+import multer from 'multer';
+import cors from 'cors';
 
 const app = express();
 
-// تكوين CORS للسماح بالنطاق المحلي
+// تكوين CORS للسماح بجميع النطاقات
 app.use(cors({
-  origin: ['http://localhost:8080', 'https://your-production-domain.com'], // أضف نطاق الإنتاج لاحقًا
-  credentials: true
+  origin: '*',
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 }));
 
 // تكوين multer للتعامل مع الملفات المرفقة
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // الحد الأقصى لحجم الملف: 5MB
+    fileSize: 5 * 1024 * 1024,
   },
 });
 
-// middleware للتعامل مع JSON
 app.use(express.json());
 
-// middleware للتعامل مع البيانات المشفرة من النماذج
-app.use(express.urlencoded({ extended: true }));
+// معالجة طلبات OPTIONS لـ CORS
+app.options('/send-email', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(200).end();
+});
 
-// مسار إرسال البريد الإلكتروني
 app.post('/send-email', upload.any(), async (req, res) => {
   try {
     // إضافة رؤوس CORS للاستجابة
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
-    console.log('طلب إرسال بريد وارد:', {
-      body: req.body,
-      files: req.files ? req.files.map(f => f.originalname) : 'لا توجد ملفات'
-    });
-
     const {
       consultation_id,
       user_email,
@@ -54,9 +53,7 @@ app.post('/send-email', upload.any(), async (req, res) => {
       });
     }
 
-    // التحقق من وجود متغيرات البيئة المطلوبة
     if (!process.env.EMAIL || !process.env.SMTP_PASS) {
-      console.error('متغيرات البيئة غير مضبوطة بشكل صحيح');
       return res.status(500).json({ 
         message: 'Server configuration error',
         details: 'توجد مشكلة في إعدادات الخادم'
@@ -71,68 +68,38 @@ app.post('/send-email', upload.any(), async (req, res) => {
       },
     });
 
-    // التحقق من اتصال الناقل
-    try {
-      await transporter.verify();
-      console.log('اتصال SMTP جاهز');
-    } catch (verifyError) {
-      console.error('خطأ في التحقق من SMTP:', verifyError);
-      return res.status(500).json({ 
-        message: 'SMTP connection failed',
-        details: 'فشل في الاتصال بخادم البريد'
-      });
-    }
-
     const subject = is_follow_up
       ? `متابعة بخصوص استشارتك (${consultation_type})`
       : `رد على استشارتك (${consultation_type})`;
 
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.8; background-color: #f7f9fc; padding: 20px; color: #333;">
-        <div style="max-width: 600px; margin: auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-          
-          <div style="background-color: #007BFF; color: white; padding: 15px 20px;">
-            <h2 style="margin: 0; font-size: 1.4em;">📩 منصة الاستشارات</h2>
-          </div>
+      <div style="font-family: Arial, sans-serif; line-height: 1.8; color: #333;">
+        <h2 style="color: #007BFF;">مرحبًا ${user_name}،</h2>
+        <p>شكرًا لتواصلك معنا بخصوص <strong>${consultation_type}</strong>.</p>
+        <p>${is_follow_up ? "هذا رد متابعة على استشارتك:" : "هذا هو الرد الخاص باستشارتك:"}</p>
 
-          <div style="padding: 20px;">
-            <h2 style="color: #007BFF; margin-top: 0;">مرحبًا ${user_name}،</h2>
-            <p>شكرًا لتواصلك معنا بخصوص <strong>${consultation_type}</strong>.</p>
-            <p>${is_follow_up ? "هذا رد متابعة على استشارتك:" : "هذا هو الرد الخاص باستشارتك:"}</p>
+        ${reply_message ? `
+        <blockquote style="border-left: 4px solid #007BFF; padding-left: 15px; margin: 15px 0;">
+          ${reply_message}
+        </blockquote>
+        ` : '<p>تم إرسال الرد كمرفقات.</p>'}
 
-            ${reply_message ? `
-            <blockquote style="border-left: 4px solid #007BFF; padding-left: 15px; margin: 15px 0; background: #f0f4ff; border-radius: 4px;">
-              ${reply_message}
-            </blockquote>
-            ` : '<p>تم إرسال الرد كمرفقات.</p>'}
+        ${req.files && req.files.length > 0 ? `
+        <p>تم إرفاق ${req.files.length} ملف(ات) مع هذا الرد.</p>
+        ` : ''}
 
-            ${req.files && req.files.length > 0 ? `
-            <p style="margin-top: 15px;">تم إرفاق ${req.files.length} ملف(ات) مع هذا الرد.</p>
-            ` : ''}
-
-            <p style="margin-top: 15px;">رقم الاستشارة: <strong>${consultation_id}</strong></p>
-
-            <div style="margin-top: 25px; padding: 15px; background-color: #fff3cd; border-left: 6px solid #ffecb5; border-radius: 4px;">
-              <strong>⚠️ تنبيه:</strong> هذا البريد مُرسل من عنوان لا يمكن الرد عليه. أي رسائل يتم إرسالها إلى هذا العنوان لن يتم استلامها أو الرد عليها. لطلب استشارة جديدة، يرجى استخدام المنصة فقط.
-            </div>
-          </div>
-
-          <div style="background: #f1f1f1; padding: 10px; text-align: center; font-size: 0.85em; color: #777;">
-            تم إرسال هذا البريد من النظام تلقائيًا.
-          </div>
-        </div>
+        <p>رقم الاستشارة: <strong>${consultation_id}</strong></p>
       </div>
     `;
 
     const mailOptions = {
-      from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
+      from: `"خدمة الدعم" <${process.env.EMAIL}>`,
       to: user_email,
       replyTo: 'no-reply@gmail.com',
       subject,
       html: htmlContent,
     };
 
-    // إضافة المرفقات إذا وجدت
     if (req.files && req.files.length > 0) {
       mailOptions.attachments = req.files.map(file => ({
         filename: file.originalname,
@@ -140,9 +107,7 @@ app.post('/send-email', upload.any(), async (req, res) => {
       }));
     }
 
-    // إرسال البريد
     const info = await transporter.sendMail(mailOptions);
-    console.log('تم إرسال البريد بنجاح:', info.messageId);
     
     res.status(200).json({ 
       message: 'تم إرسال البريد بنجاح!',
@@ -153,24 +118,8 @@ app.post('/send-email', upload.any(), async (req, res) => {
     res.status(500).json({
       message: 'فشل إرسال البريد',
       error: err.toString(),
-      details: 'حدث خطأ تقني. يرجى المحاولة مرة أخرى لاحقًا.'
     });
   }
 });
 
-// مسار للتحقق من صحة الخادم
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    message: 'الخادم يعمل بشكل صحيح',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// معالجة طلبات OPTIONS لـ CORS
-app.options('/send-email', cors());
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ الخادم يعمل على المنفذ ${PORT}`);
-});
+export default app;
