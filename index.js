@@ -2,14 +2,17 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 const cors = require('cors');
+const multer = require('multer');
 require('dotenv').config();
 
 const app = express();
+const upload = multer({ storage: multer.memoryStorage() }); // التخزين في الذاكرة
 
 app.use(cors()); // السماح بالوصول من أي origin (ممكن تحدد origin معين)
 app.use(express.json());
 
-app.post('/send-email', async (req, res) => {
+// عدل هنا: استخدم upload.single('attachment') لاستقبال ملف واحد باسم attachment
+app.post('/send-email', upload.single('attachment'), async (req, res) => {
   const {
     consultation_id,
     user_email,
@@ -66,12 +69,23 @@ app.post('/send-email', async (req, res) => {
     </div>
   `;
 
+  // إعداد المرفقات إذا تم رفع ملف
+  let attachments = [];
+  if (req.file) {
+    attachments.push({
+      filename: req.file.originalname,
+      content: req.file.buffer,
+      contentType: req.file.mimetype
+    });
+  }
+
   const mailOptions = {
     from: `"خدمة الدعم - منصة الاستشارات" <${process.env.EMAIL}>`,
     to: user_email,
     replyTo: 'no-reply@gmail.com',
     subject,
     html: htmlContent,
+    attachments // أضف المرفقات هنا
   };
 
   try {
