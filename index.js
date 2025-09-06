@@ -6,8 +6,14 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+const cors = require('cors');
 
+// السماح لجميع origins
+app.use(cors({
+  origin: '*',  // 👈 يسمح لأي دومين
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 // إعداد multer لحفظ الملفات في الذاكرة (مش على الهارد)
 const upload = multer({ storage: multer.memoryStorage() });
 
